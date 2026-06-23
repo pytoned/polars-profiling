@@ -2,12 +2,24 @@ import contextlib
 import warnings
 from typing import Any
 
+import datetime
+
 import matplotlib
-import seaborn as sns
-from pandas.plotting import (
-    deregister_matplotlib_converters,
-    register_matplotlib_converters,
-)
+import numpy as np
+from matplotlib import dates as mdates
+from matplotlib import units as munits
+
+
+def register_matplotlib_converters() -> None:
+    """Register concise date converters with matplotlib (pandas-free)."""
+    converter = mdates.ConciseDateConverter()
+    for dtype in (datetime.date, datetime.datetime, np.datetime64):
+        munits.registry.setdefault(dtype, converter)
+
+
+def deregister_matplotlib_converters() -> None:
+    """No-op: matplotlib handles unit registry restoration via rcParams."""
+    return None
 
 
 @contextlib.contextmanager
@@ -76,7 +88,6 @@ def manage_matplotlib_context() -> Any:
     try:
         register_matplotlib_converters()
         matplotlib.rcParams.update(customRcParams)
-        sns.set_style(style="white")
         yield
     finally:
         deregister_matplotlib_converters()  # revert to original unit registries

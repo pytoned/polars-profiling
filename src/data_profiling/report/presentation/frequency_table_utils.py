@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 from typing import Any, Dict, List, Union
 
 import numpy as np
-import pandas as pd
 
 
 def _frequency_table(

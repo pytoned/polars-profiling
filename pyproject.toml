@@ -7,16 +7,16 @@ requires = [
 ]
 
 [packaging]
-package_name = "fg-data-profiling"
+package_name = "polars-profiling"
 
 [project]
-name = "fg-data-profiling"
+name = "polars-profiling"
 requires-python = ">=3.10,<3.14"
 authors = [
     {name = "YData Labs Inc", email = "opensource@ydata.ai"}
 ]
-description = "Generate profile report for pandas DataFrame"
-keywords = ["pandas", "data-science", "data-analysis", "python", "jupyter", "ipython"]
+description = "Generate a profile report for a Polars DataFrame"
+keywords = ["polars", "data-science", "data-analysis", "python", "jupyter", "ipython"]
 readme = "README.md"
 license = {file = "LICENSE.md"}
 classifiers = [
@@ -40,34 +40,28 @@ classifiers = [
 ]
 
 dependencies = [
+    # Core dataframe engine (Polars only)
+    "polars>=1.0, <2",
     "scipy>=1.8, <1.17",
-    "pandas>1.5, <3.0, !=1.4.0",
     "matplotlib>=3.5, <=3.10",
     "pydantic>=2, <3",
     "PyYAML>=6.0.3, <6.1",
     "jinja2>=3.1.6, <3.2",
-    "visions[type_image_path]>=0.7.5, <0.8.2",
     "numpy>=1.22,<2.4",
-    # Could be optional
     # Related to HTML report
     "minify-html>=0.15.0",
     "filetype>=1.0.0",
-    # Correlations
-    "phik>=0.12.5, <0.13",
-    # Examples
+    # Examples / file IO
     "requests>=2.32.0, <3",
     # Progress bar
     "tqdm>=4.66.3, <5",
-    "seaborn>=0.10.1, <0.14",
+    # Multiple dispatch for the backend
     "multimethod>=1.4, <2",
-    # metrics
-    "statsmodels>=0.13.2, <1",
     # type checking
     "typeguard>=4, <5",
     "imagehash==4.3.2",
     "wordcloud>=1.9.4",
     "dacite>=1.9, <2",
-    "numba>=0.60,<0.63",
 ]
 
 dynamic = [
@@ -105,17 +99,6 @@ notebook = [
     "ipywidgets>=7.5.1",
 ]
 
-# this provides the recommended pyspark and pyarrow versions for spark to work on pandas-profiling
-# note that if you are using pyspark 2.3 or 2.4 and pyarrow >= 0.15, you might need to
-# set ARROW_PRE_0_15_IPC_FORMAT=1 in your conf/spark-env.sh for toPandas functions to work properly
-spark = [
-    "pyspark>=4.0",
-    "pyarrow>=4.0.0",
-    "pandas>1.1",
-    "numpy>=1.16.0",
-    "visions[type_image_path]>=0.7.5, <0.7.7",
-]
-
 test = [
     "pytest",
     "coverage>=6.5, <8",
@@ -137,7 +120,6 @@ Repository = "https://github.com/Data-Centric-AI-Community/fg-data-profiling"
 
 [project.scripts]
 data_profiling = "data_profiling.controller.console:main"
-pandas_profiling = "data_profiling.controller.console:main"
 
 # setuptools relative
 

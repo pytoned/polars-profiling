@@ -1,7 +1,6 @@
 from typing import Any, Optional
 
-import pandas as pd
-from visions import VisionsTypeset
+import polars as pl
 
 from data_profiling.config import Settings
 from data_profiling.model import BaseDescription, expectation_algorithms
@@ -12,7 +11,7 @@ from data_profiling.utils.dataframe import slugify
 class ExpectationHandler(Handler):
     """Default handler"""
 
-    def __init__(self, typeset: VisionsTypeset, *args, **kwargs):
+    def __init__(self, typeset: Any, *args, **kwargs):
         mapping = {
             "Unsupported": [expectation_algorithms.generic_expectations],
             "Text": [expectation_algorithms.categorical_expectations],
@@ -30,10 +29,10 @@ class ExpectationHandler(Handler):
 
 class ExpectationsReport:
     config: Settings
-    df: Optional[pd.DataFrame] = None
+    df: Optional[pl.DataFrame] = None
 
     @property
-    def typeset(self) -> Optional[VisionsTypeset]:
+    def typeset(self) -> Optional[Any]:
         return None
 
     def to_expectation_suite(
@@ -81,8 +80,12 @@ class ExpectationsReport:
 
         suite = data_context.add_expectation_suite(suite_name)
 
-        # Instantiate an in-memory pandas dataset
-        batch = ge.dataset.PandasDataset(self.df, expectation_suite=suite)
+        # Great Expectations' in-memory dataset is pandas-based; convert at this
+        # boundary only (requires the optional `great_expectations` extra, which
+        # itself depends on pandas).
+        batch = ge.dataset.PandasDataset(
+            self.df.to_pandas(), expectation_suite=suite
+        )
 
         # Obtain the profiling summary
         summary: BaseDescription = self.get_description()  # type: ignore
@@ -97,7 +100,9 @@ class ExpectationsReport:
 
         validation_result_identifier = None
         if run_validation:
-            batch = ge.dataset.PandasDataset(self.df, expectation_suite=suite)
+            batch = ge.dataset.PandasDataset(
+                self.df.to_pandas(), expectation_suite=suite
+            )
 
             results = data_context.run_validation_operator(
                 "action_list_operator", assets_to_validate=[batch]

@@ -1,18 +1,18 @@
 """Plot functions for the profiling report."""
+from __future__ import annotations
+
 import copy
 from typing import Any, Callable, List, Optional, Tuple, Union
 
 import matplotlib
 import numpy as np
-import pandas as pd
-import seaborn as sns
+import polars as pl
 from matplotlib import pyplot as plt
 from matplotlib.collections import PolyCollection
 from matplotlib.colors import Colormap, LinearSegmentedColormap, ListedColormap, rgb2hex
 from matplotlib.dates import AutoDateLocator, ConciseDateFormatter
 from matplotlib.patches import Patch
 from matplotlib.ticker import FuncFormatter, MaxNLocator
-from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from typeguard import typechecked
 from wordcloud import WordCloud
 
@@ -20,6 +20,11 @@ from data_profiling.config import Settings
 from data_profiling.utils.common import convert_timestamp_to_datetime
 from data_profiling.visualisation.context import manage_matplotlib_context
 from data_profiling.visualisation.utils import plot_360_n0sc0pe
+
+
+def _light_cmap(color: Any) -> LinearSegmentedColormap:
+    """White-to-``color`` sequential colormap (seaborn ``light_palette`` replacement)."""
+    return LinearSegmentedColormap.from_list("light", ["#ffffff", color])
 
 
 def format_fn(tick_val: int, tick_pos: Any) -> str:
@@ -349,7 +354,7 @@ def scatter_complex(config: Settings, series: pd.Series) -> str:
     color = config.html.style.primary_colors[0]
 
     if len(series) > config.plot.scatter_threshold:
-        cmap = sns.light_palette(color, as_cmap=True)
+        cmap = _light_cmap(color)
         plt.hexbin(series.real, series.imag, cmap=cmap)
     else:
         plt.scatter(series.real, series.imag, color=color)
@@ -382,7 +387,7 @@ def scatter_series(
 
     data = zip(*series.tolist())
     if len(series) > config.plot.scatter_threshold:
-        cmap = sns.light_palette(color, as_cmap=True)
+        cmap = _light_cmap(color)
         plt.hexbin(*data, cmap=cmap)
     else:
         plt.scatter(*data, color=color)
@@ -419,7 +424,7 @@ def scatter_pairwise(
     series2 = np.asarray(series2, dtype=float)
     indices = ~(np.isnan(series1) | np.isnan(series2))
     if len(series1) > config.plot.scatter_threshold:
-        cmap = sns.light_palette(color, as_cmap=True)
+        cmap = _light_cmap(color)
         plt.hexbin(series1[indices], series2[indices], gridsize=15, cmap=cmap)
     else:
         plt.scatter(series1[indices], series2[indices], color=color)
@@ -604,11 +609,21 @@ def create_comparison_color_list(config: Settings) -> List[str]:
     return colors
 
 
+def _is_datetime_indexed(series: Any) -> bool:
+    index = getattr(series, "index", None)
+    if index is None:
+        return False
+    try:
+        return np.issubdtype(np.asarray(index).dtype, np.datetime64)
+    except TypeError:
+        return False
+
+
 def _format_ts_date_axis(
     series: pd.Series,
     axis: matplotlib.axis.Axis,
 ) -> matplotlib.axis.Axis:
-    if isinstance(series.index, pd.DatetimeIndex):
+    if _is_datetime_indexed(series):
         locator = AutoDateLocator()
         axis.xaxis.set_major_locator(locator)
         axis.xaxis.set_major_formatter(ConciseDateFormatter(locator))
@@ -759,7 +774,7 @@ def mini_ts_plot(
     plt.rc("ytick", labelsize=3)
 
     for tick in plot.xaxis.get_major_ticks():
-        if isinstance(series.index, pd.DatetimeIndex):
+        if _is_datetime_indexed(series):
             tick.label1.set_fontsize(6)
         else:
             tick.label1.set_fontsize(8)
@@ -773,37 +788,62 @@ def _get_ts_lag(config: Settings, series: pd.Series) -> int:
     return np.min([lag, max_lag_size])
 
 
+def _clean_array(series: Any) -> np.ndarray:
+    x = np.asarray(getattr(series, "values", series), dtype=float)
+    return x[~np.isnan(x)]
+
+
+def _acf(x: np.ndarray, nlags: int) -> np.ndarray:
+    """Autocorrelation function up to ``nlags`` (numpy, statsmodels-free)."""
+    x = x - x.mean()
+    denom = np.dot(x, x)
+    out = np.ones(nlags + 1)
+    for k in range(1, nlags + 1):
+        out[k] = np.dot(x[:-k], x[k:]) / denom if denom else 0.0
+    return out
+
+
+def _pacf(x: np.ndarray, nlags: int) -> np.ndarray:
+    """Partial autocorrelation via the Levinson-Durbin recursion."""
+    r = _acf(x, nlags)
+    pacf = np.zeros(nlags + 1)
+    pacf[0] = 1.0
+    phi = np.zeros((nlags + 1, nlags + 1))
+    if nlags >= 1:
+        phi[1, 1] = r[1]
+        pacf[1] = r[1]
+        for k in range(2, nlags + 1):
+            num = r[k] - sum(phi[k - 1, j] * r[k - j] for j in range(1, k))
+            den = 1 - sum(phi[k - 1, j] * r[j] for j in range(1, k))
+            phi[k, k] = num / den if den else 0.0
+            for j in range(1, k):
+                phi[k, j] = phi[k - 1, j] - phi[k, k] * phi[k - 1, k - j]
+            pacf[k] = phi[k, k]
+    return pacf
+
+
+def _stem(ax: plt.Axes, values: np.ndarray, n: int, color: Any, title: str) -> None:
+    lags = np.arange(len(values))
+    ax.vlines(lags, 0, values, colors=color)
+    ax.scatter(lags, values, color=color, zorder=3, s=15)
+    ax.axhline(0, color="black", linewidth=0.6)
+    if n > 0:
+        ci = 1.96 / np.sqrt(n)
+        ax.fill_between(lags, -ci, ci, color=color, alpha=0.2)
+    ax.set_title(title)
+
+
 def _plot_acf_pacf(
     config: Settings, series: pd.Series, figsize: tuple = (15, 5)
 ) -> str:
     color = config.html.style.primary_colors[0]
 
     lag = _get_ts_lag(config, series)
+    x = _clean_array(series)
     _, axes = plt.subplots(nrows=1, ncols=2, figsize=figsize)
 
-    plot_acf(
-        series.dropna(),
-        lags=lag,
-        ax=axes[0],
-        title="ACF",
-        fft=True,
-        color=color,
-        vlines_kwargs={"colors": color},
-    )
-    plot_pacf(
-        series.dropna(),
-        lags=lag,
-        ax=axes[1],
-        title="PACF",
-        method="ywm",
-        color=color,
-        vlines_kwargs={"colors": color},
-    )
-
-    for ax in axes:
-        for item in ax.collections:
-            if type(item) is PolyCollection:
-                item.set_facecolor(color)
+    _stem(axes[0], _acf(x, lag), len(x), color, "ACF")
+    _stem(axes[1], _pacf(x, lag), len(x), color, "PACF")
 
     return plot_360_n0sc0pe(config)
 
@@ -811,7 +851,6 @@ def _plot_acf_pacf(
 def _plot_acf_pacf_comparison(
     config: Settings, series: List[pd.Series], figsize: tuple = (15, 5)
 ) -> str:
-    colors = config.html.style.primary_colors
     n_labels = len(config.html.style._labels)
     colors = create_comparison_color_list(config)
 
@@ -819,32 +858,10 @@ def _plot_acf_pacf_comparison(
     is_first = True
     for serie, (acf_axis, pacf_axis), color in zip(series, axes, colors):
         lag = _get_ts_lag(config, serie)
-
-        plot_acf(
-            serie.dropna(),
-            lags=lag,
-            ax=acf_axis,
-            title="ACF" if is_first else "",
-            fft=True,
-            color=color,
-            vlines_kwargs={"colors": color},
-        )
-        plot_pacf(
-            serie.dropna(),
-            lags=lag,
-            ax=pacf_axis,
-            title="PACF" if is_first else "",
-            method="ywm",
-            color=color,
-            vlines_kwargs={"colors": color},
-        )
+        x = _clean_array(serie)
+        _stem(acf_axis, _acf(x, lag), len(x), color, "ACF" if is_first else "")
+        _stem(pacf_axis, _pacf(x, lag), len(x), color, "PACF" if is_first else "")
         is_first = False
-
-    for row, color in zip(axes, colors):
-        for ax in row:
-            for item in ax.collections:
-                if isinstance(item, PolyCollection):
-                    item.set_facecolor(color)
 
     return plot_360_n0sc0pe(config)
 
@@ -860,65 +877,72 @@ def plot_acf_pacf(
 
 
 def _prepare_heatmap_data(
-    dataframe: pd.DataFrame,
+    dataframe: pl.DataFrame,
     entity_column: str,
     sortby: Optional[Union[str, list]] = None,
     max_entities: int = 5,
     selected_entities: Optional[List[str]] = None,
-) -> pd.DataFrame:
+) -> Tuple[np.ndarray, List[str]]:
+    """Build a (matrix, entity_labels) heatmap representation natively in Polars."""
     if sortby is None:
         sortbykey = "_index"
-        df = dataframe[entity_column].copy().reset_index()
-        df.columns = [sortbykey, entity_column]
-
+        df = dataframe.select(pl.col(entity_column)).with_row_index(sortbykey)
     else:
         if isinstance(sortby, str):
             sortby = [sortby]
-        cols = [entity_column, *sortby]
-        df = dataframe[cols].copy()
         sortbykey = sortby[0]
+        df = dataframe.select([entity_column, *sortby])
 
-    if df[sortbykey].dtype == "O":
+    sort_col = df.get_column(sortbykey)
+    if sort_col.dtype in (pl.String, pl.Utf8):
         try:
-            df[sortbykey] = pd.to_datetime(df[sortbykey])
+            df = df.with_columns(pl.col(sortbykey).str.to_datetime(strict=False))
+            sort_col = df.get_column(sortbykey)
         except Exception as ex:
             raise ValueError(
-                f"column {sortbykey} dtype {df[sortbykey].dtype} is not supported."
+                f"column {sortbykey} dtype {sort_col.dtype} is not supported."
             ) from ex
-    nbins = np.min([50, df[sortbykey].nunique()])
 
-    df["__bins"] = pd.cut(
-        df[sortbykey], bins=nbins, include_lowest=True, labels=range(nbins)
-    )
+    nbins = int(min(50, sort_col.n_unique()))
+    numeric = sort_col.to_physical().cast(pl.Float64, strict=False)
+    df = df.with_columns(numeric.alias("__num"))
 
-    df = df.groupby([entity_column, "__bins"])[sortbykey].count()
-    df = (
-        df.reset_index()
-        .pivot_table(values=sortbykey, index="__bins", columns=entity_column)
-        .T
-    )
+    lo, hi = numeric.min(), numeric.max()
+    edges = np.linspace(float(lo), float(hi), nbins + 1)
+    bins = np.clip(np.digitize(numeric.to_numpy(), edges[1:-1]), 0, nbins - 1)
+    df = df.with_columns(pl.Series("__bins", bins))
 
+    counts = df.group_by([entity_column, "__bins"]).agg(pl.len().alias("__count"))
+
+    entities = counts.get_column(entity_column).unique().sort().to_list()
     if selected_entities:
-        df = df[selected_entities]
+        entities = [e for e in entities if e in selected_entities]
     else:
-        df = df[:max_entities]
+        entities = entities[:max_entities]
 
-    return df
+    entity_to_row = {e: i for i, e in enumerate(entities)}
+    matrix = np.full((len(entities), nbins), np.nan)
+    for ent, b, c in counts.iter_rows():
+        if ent in entity_to_row:
+            matrix[entity_to_row[ent], int(b)] = c
+
+    return matrix, [str(e) for e in entities]
 
 
 def _create_timeseries_heatmap(
-    df: pd.DataFrame,
+    data: Tuple[np.ndarray, List[str]],
     figsize: Tuple[int, int] = (12, 5),
     color: str = "#337ab7",
 ) -> plt.Axes:
+    matrix, labels = data
     _, ax = plt.subplots(figsize=figsize)
     cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
         "report", ["white", color], N=64
     )
-    pc = ax.pcolormesh(df, edgecolors=ax.get_facecolor(), linewidth=0.25, cmap=cmap)
-    pc.set_clim(0, np.nanmax(df))
-    ax.set_yticks([x + 0.5 for x in range(len(df))])
-    ax.set_yticklabels(df.index)
+    pc = ax.pcolormesh(matrix, edgecolors=ax.get_facecolor(), linewidth=0.25, cmap=cmap)
+    pc.set_clim(0, np.nanmax(matrix) if matrix.size else 1)
+    ax.set_yticks([x + 0.5 for x in range(len(labels))])
+    ax.set_yticklabels(labels)
     ax.set_xticks([])
     ax.set_xlabel("Time")
     ax.invert_yaxis()
@@ -927,7 +951,7 @@ def _create_timeseries_heatmap(
 
 @typechecked
 def timeseries_heatmap(
-    dataframe: pd.DataFrame,
+    dataframe: pl.DataFrame,
     entity_column: str,
     sortby: Optional[Union[str, list]] = None,
     max_entities: int = 5,
@@ -1100,6 +1124,7 @@ def missing_heatmap(
     normalized_cmap: bool = True,
     cbar: bool = True,
     ax: matplotlib.axis.Axis = None,
+    columns: Optional[List[str]] = None,
 ) -> matplotlib.axis.Axis:
     """
     Presents a `seaborn` heatmap visualization of missing data correlation.
@@ -1120,47 +1145,55 @@ def missing_heatmap(
         The plot axis.
     """
     _, ax = plt.subplots(1, 1, figsize=figsize)
-    norm_args = {"vmin": -1, "vmax": 1} if normalized_cmap else {}
+    vmin, vmax = (-1, 1) if normalized_cmap else (None, None)
+
+    corr = np.array(corr_mat, dtype=float)
+    masked = np.ma.array(corr, mask=np.asarray(mask, dtype=bool))
+
+    colormap = copy.copy(plt.get_cmap(cmap))
+    colormap.set_bad(color="white", alpha=0.0)
+
+    n = corr.shape[0]
+    image = ax.imshow(masked, cmap=colormap, vmin=vmin, vmax=vmax, aspect="equal")
+    if cbar:
+        ax.figure.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
+
+    ax.set_xticks(range(n))
+    ax.set_yticks(range(n))
+    if columns is not None:
+        ax.set_xticklabels(
+            columns, rotation=label_rotation, ha="right", fontsize=fontsize
+        )
+        ax.set_yticklabels(columns, rotation=0, fontsize=fontsize)
+
+    def _label(value: float) -> str:
+        if 0.95 <= value < 1:
+            return "<1"
+        if -1 < value <= -0.95:
+            return ">-1"
+        if value == 1:
+            return "1"
+        if value == -1:
+            return "-1"
+        if -0.05 < value < 0.05:
+            return ""
+        return str(round(value, 1))
 
     if labels:
-        sns.heatmap(
-            corr_mat,
-            mask=mask,
-            cmap=cmap,
-            ax=ax,
-            cbar=cbar,
-            annot=True,
-            annot_kws={"size": fontsize - 2},
-            **norm_args,
-        )
-    else:
-        sns.heatmap(corr_mat, mask=mask, cmap=cmap, ax=ax, cbar=cbar, **norm_args)
+        for i in range(n):
+            for j in range(n):
+                if not bool(np.asarray(mask)[i, j]) and not np.isnan(corr[i, j]):
+                    ax.text(
+                        j,
+                        i,
+                        _label(float(corr[i, j])),
+                        ha="center",
+                        va="center",
+                        fontsize=fontsize - 2,
+                    )
 
-    # Apply visual corrections and modifications.
     ax.xaxis.tick_bottom()
-    ax.set_xticklabels(
-        ax.xaxis.get_majorticklabels(),
-        rotation=label_rotation,
-        ha="right",
-        fontsize=fontsize,
-    )
-    ax.set_yticklabels(ax.yaxis.get_majorticklabels(), rotation=0, fontsize=fontsize)
     ax = _set_visibility(ax)
     ax.patch.set_visible(False)
-
-    for text in ax.texts:
-        t = float(text.get_text())
-        if 0.95 <= t < 1:
-            text.set_text("<1")
-        elif -1 < t <= -0.95:
-            text.set_text(">-1")
-        elif t == 1:
-            text.set_text("1")
-        elif t == -1:
-            text.set_text("-1")
-        elif -0.05 < t < 0.05:
-            text.set_text("")
-        else:
-            text.set_text(round(t, 1))
 
     return ax

@@ -1,4 +1,4 @@
-import pandas as pd
+from data_profiling.utils.varseries import VarSeries
 
 from data_profiling.config import Settings
 from data_profiling.report.formatters import fmt_numeric
@@ -155,7 +155,10 @@ def render_image(config: Settings, summary: dict) -> dict:
         items = [
             FrequencyTable(
                 freq_table(
-                    freqtable=pd.Series(summary["exif_keys_counts"]),
+                    freqtable=VarSeries(
+                        list(summary["exif_keys_counts"].values()),
+                        index=list(summary["exif_keys_counts"].keys()),
+                    ),
                     n=summary["n"],
                     max_number_to_print=n_freq_table_max,
                 ),

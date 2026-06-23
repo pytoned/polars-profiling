@@ -1,6 +1,6 @@
-from typing import Any
+from __future__ import annotations
 
-import pandas as pd
+from typing import Any
 
 from data_profiling.report.presentation.core.item_renderer import ItemRenderer
 

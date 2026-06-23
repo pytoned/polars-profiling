@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import os
 from typing import List, Sequence
 
-import pandas as pd
 from tqdm.auto import tqdm
 
 from data_profiling.config import Settings

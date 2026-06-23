@@ -4,7 +4,7 @@
 
 import logging
 
-import pandas as pd
+import polars as pl
 
 from data_profiling.utils.common import (
     analytics_features,
@@ -25,15 +25,12 @@ class ProfilingLogger(logging.Logger):
 
         nrows = calculate_nrows(df)
 
-        if isinstance(df, pd.DataFrame):
-            dataframe = "pandas"
+        if isinstance(df, pl.DataFrame):
+            dataframe = "polars"
             report_type = "regular"
-        elif df is None:
-            dataframe = "pandas"
-            report_type = "compare"
         else:
-            dataframe = "spark"
-            report_type = "regular"
+            dataframe = "polars"
+            report_type = "compare"
 
         dbx = is_running_in_databricks()
         datatype = "timeseries" if timeseries else "tabular"

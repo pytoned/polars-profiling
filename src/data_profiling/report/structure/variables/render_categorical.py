@@ -1,6 +1,6 @@
-from typing import List, Tuple, Union
+from __future__ import annotations
 
-import pandas as pd
+from typing import List, Tuple, Union
 
 from data_profiling.config import Settings
 from data_profiling.report.formatters import (

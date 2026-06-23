@@ -1,4 +1,6 @@
 """Formatters are mappings from object(s) to a string."""
+from __future__ import annotations
+
 import decimal
 import math
 import re
@@ -6,7 +8,6 @@ from datetime import timedelta
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-import pandas as pd
 from markupsafe import escape
 
 
@@ -223,12 +224,8 @@ def fmt_timespan(num_seconds: Any, detailed: bool = False, max_units: int = 3) -
 def fmt_timespan_timedelta(
     delta: Any, detailed: bool = False, max_units: int = 3, precision: int = 10
 ) -> str:
-    if isinstance(delta, pd.Timedelta):
+    if isinstance(delta, timedelta):
         num_seconds = delta.total_seconds()
-        if delta.microseconds > 0:
-            num_seconds += delta.microseconds * 1e-6
-        if delta.nanoseconds > 0:
-            num_seconds += delta.nanoseconds * 1e-9
         return fmt_timespan(num_seconds, detailed, max_units)
     else:
         return fmt_numeric(delta, precision)

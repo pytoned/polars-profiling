@@ -128,6 +128,7 @@ def plot_missing_heatmap(
         fontsize=font_size,
         cmap=config.plot.missing.cmap,
         labels=config.plot.missing.force_labels,
+        columns=columns,
     )
 
     if len(columns) > 40:

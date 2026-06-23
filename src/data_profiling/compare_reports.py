@@ -3,7 +3,7 @@ import warnings
 from dataclasses import asdict
 from typing import Any, List, Optional, Tuple, Union
 
-import pandas as pd
+import polars as pl
 from dacite import from_dict
 
 from data_profiling.config import Correlation, Settings
@@ -16,14 +16,14 @@ def _should_wrap(v1: Any, v2: Any) -> bool:
     if isinstance(v1, (list, dict)):
         return False
 
-    if isinstance(v1, pd.DataFrame) and isinstance(v2, pd.DataFrame):
+    if isinstance(v1, pl.DataFrame) and isinstance(v2, pl.DataFrame):
         return v1.equals(v2)
-    if isinstance(v1, pd.Series) and isinstance(v2, pd.Series):
+    if isinstance(v1, pl.Series) and isinstance(v2, pl.Series):
         return v1.equals(v2)
 
     try:
-        return v1 == v2
-    except ValueError:
+        return bool(v1 == v2)
+    except (ValueError, TypeError):
         return False
 
 
@@ -295,8 +295,8 @@ def compare(
         base_features = reports[0].df.columns  # type: ignore
         for report in reports[1:]:
             cols_2_compare = [col for col in base_features if col in report.df.columns]  # type: ignore
-            report.df = report.df.loc[:, cols_2_compare]  # type: ignore
-        reports = [r for r in reports if not r.df.empty]  # type: ignore
+            report.df = report.df.select(cols_2_compare)  # type: ignore
+        reports = [r for r in reports if r.df.height > 0]  # type: ignore
         if len(reports) == 1:
             return reports[0]  # type: ignore
     else:

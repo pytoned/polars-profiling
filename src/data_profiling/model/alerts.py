@@ -1,13 +1,23 @@
 """Logic for alerting the user on possibly problematic patterns in the data (e.g. high number of zeros , constant
 values, high correlations)."""
 
+import math
 from enum import Enum, auto, unique
 from typing import Dict, List, Optional, Set
 
 import numpy as np
-import pandas as pd
 
 from data_profiling.config import Settings
+
+
+def _is_missing(value: object) -> bool:
+    """True if ``value`` is None or NaN (pandas ``isna`` replacement)."""
+    if value is None:
+        return True
+    try:
+        return bool(math.isnan(value))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return False
 from data_profiling.model.correlations import perform_check_correlation
 from data_profiling.utils.styles import get_alert_styles
 
@@ -762,19 +772,20 @@ def get_alerts(
 
 
 def alert_value(value: float) -> bool:
-    return not pd.isna(value) and value > 0.01
+    return not _is_missing(value) and value > 0.01
 
 
 def skewness_alert(v: float, threshold: int) -> bool:
-    return not pd.isna(v) and (v < (-1 * threshold) or v > threshold)
+    return not _is_missing(v) and (v < (-1 * threshold) or v > threshold)
 
 
-def type_date_alert(series: pd.Series) -> bool:
+def type_date_alert(series: "object") -> bool:
     from dateutil.parser import ParserError, parse
 
     try:
-        series.apply(parse)
-    except ParserError:
+        for value in series:
+            parse(value)
+    except (ParserError, TypeError, ValueError):
         return False
     else:
         return True

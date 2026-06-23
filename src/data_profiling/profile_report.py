@@ -82,7 +82,7 @@ class ProfileReport(SerializeReport, ExpectationsReport):
         - custom settings **kwargs (e.g. `title`)
 
         Args:
-            df: a pandas or spark.sql DataFrame
+            df: a Polars DataFrame
             minimal: minimal mode is a default configuration with minimal computation
             ts_mode: activates time-series analysis for all the numerical variables from the dataset.
             Only available for pd.DataFrame

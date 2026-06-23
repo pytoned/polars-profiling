@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Mapping
 
-import pandas as pd
+import polars as pl
 import requests
 
 from data_profiling.version import __version__
@@ -115,28 +115,10 @@ def is_running_in_databricks():
 
 def calculate_nrows(df):
     """
-    Calculates the approx. number of rows spark dataframes
+    Calculates the number of rows of a Polars DataFrame.
 
-    Returns: int, approximate number of rows
+    Returns: int, number of rows
     """
-    if isinstance(df, pd.DataFrame):
-        if df is not None:
-            nrows = len(df)
-        else:
-            nrows = 0
-    else:
-        try:
-            n_partitions = df.rdd.getNumPartitions()
-
-            nrows = (
-                df.rdd.mapPartitionsWithIndex(
-                    lambda idx, partition: [sum(1 for _ in partition)]
-                    if idx == 0
-                    else [0]
-                ).collect()[0]
-                * n_partitions
-            )
-        except Exception:
-            nrows = 0
-
-    return nrows
+    if isinstance(df, pl.DataFrame):
+        return df.height
+    return 0
