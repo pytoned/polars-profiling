@@ -1,35 +1,25 @@
-import importlib
 from typing import Any
 
-import pandas as pd
+import polars as pl
 
 from data_profiling.config import Settings
-from data_profiling.model.pandas.dataframe_pandas import pandas_preprocess
-
-spec = importlib.util.find_spec("pyspark")
-if spec is None:
-    from typing import TypeVar
-
-    sparkDataFrame = TypeVar("sparkDataFrame")
-else:
-    from pyspark.sql import DataFrame as sparkDataFrame  # type: ignore
-
-    from data_profiling.model.spark.dataframe_spark import spark_preprocess
+from data_profiling.model.polars.dataframe_polars import polars_preprocess
 
 
 def preprocess(config: Settings, df: Any) -> Any:
-    """
-    Search for invalid columns datatypes as well as ensures column names follow the expected rules
-    Args:
-        config: ydataprofiling Settings class
-        df: a pandas or spark dataframe
+    """Validate and normalise the input DataFrame.
 
-    Returns: a pandas or spark dataframe
+    Ensures column names follow the expected rules.
+
+    Args:
+        config: data-profiling Settings object
+        df: a Polars DataFrame
+
+    Returns:
+        A preprocessed Polars DataFrame
     """
-    if isinstance(df, pd.DataFrame):
-        df = pandas_preprocess(config=config, df=df)
-    elif isinstance(df, sparkDataFrame):  # type: ignore
-        df = spark_preprocess(config=config, df=df)
-    else:
-        return NotImplementedError()
-    return df
+    if isinstance(df, pl.DataFrame):
+        return polars_preprocess(config=config, df=df)
+    raise NotImplementedError(
+        f"`df` must be a `polars.DataFrame`, but got {type(df)}."
+    )

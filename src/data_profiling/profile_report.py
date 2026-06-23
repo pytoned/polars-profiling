@@ -4,28 +4,18 @@ import warnings
 from pathlib import Path
 from typing import Any, Optional, Union
 
-from data_profiling.utils.backend import is_pyspark_installed
-
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     import pkg_resources
 
-if not is_pyspark_installed():
-    from typing import TypeVar
-
-    sDataFrame = TypeVar("sDataFrame")
-else:
-    from pyspark.sql import DataFrame as sDataFrame  # type: ignore
-
 from dataclasses import asdict, is_dataclass
 
 import numpy as np
-import pandas as pd
+import polars as pl
 from tqdm.auto import tqdm
 from typeguard import typechecked
-from visions import VisionsTypeset
 
-from data_profiling.config import Config, Settings, SparkSettings
+from data_profiling.config import Config, Settings
 from data_profiling.expectations_report import ExpectationsReport
 from data_profiling.model import BaseDescription
 from data_profiling.model.alerts import AlertType
@@ -45,6 +35,7 @@ from data_profiling.report.presentation.flavours.html.templates import (
 )
 from data_profiling.serialize_report import SerializeReport
 from data_profiling.utils.dataframe import hash_dataframe
+from data_profiling.utils.varseries import VarSeries
 from data_profiling.utils.logger import ProfilingLogger
 from data_profiling.utils.paths import get_config
 
@@ -67,7 +58,7 @@ class ProfileReport(SerializeReport, ExpectationsReport):
 
     def __init__(
         self,
-        df: Optional[Union[pd.DataFrame, sDataFrame]] = None,
+        df: Optional["pl.DataFrame"] = None,
         minimal: bool = False,
         tsmode: bool = False,
         sortby: Optional[str] = None,
@@ -76,13 +67,13 @@ class ProfileReport(SerializeReport, ExpectationsReport):
         sample: Optional[dict] = None,
         config_file: Optional[Union[Path, str]] = None,
         lazy: bool = True,
-        typeset: Optional[VisionsTypeset] = None,
+        typeset: Optional[Any] = None,
         summarizer: Optional[BaseSummarizer] = None,
         config: Optional[Settings] = None,
         type_schema: Optional[dict] = None,
         **kwargs,
     ):
-        """Generate a ProfileReport based on a pandas or spark.sql DataFrame
+        """Generate a ProfileReport based on a Polars DataFrame
 
         Config processing order (in case of duplicate entries, entries later in the order are retained):
         - config presets (e.g. `config_file`, `minimal` arguments)
@@ -118,10 +109,7 @@ class ProfileReport(SerializeReport, ExpectationsReport):
         elif config is not None:
             report_config = config
         else:
-            if isinstance(df, pd.DataFrame):
-                report_config = Settings()
-            else:
-                report_config = SparkSettings()
+            report_config = Settings()
 
         groups = [
             (explorative, "explorative"),
@@ -162,7 +150,7 @@ class ProfileReport(SerializeReport, ExpectationsReport):
 
     @staticmethod
     def __validate_inputs(
-        df: Optional[Union[pd.DataFrame, sDataFrame]],
+        df: Optional["pl.DataFrame"],
         minimal: bool,
         tsmode: bool,
         config_file: Optional[Union[Path, str]],
@@ -177,29 +165,20 @@ class ProfileReport(SerializeReport, ExpectationsReport):
                 "Arguments `config_file` and `minimal` are mutually exclusive."
             )
 
-        # Spark Dataframe validations
-        if isinstance(df, pd.DataFrame):
-            if df is not None and df.empty:
-                raise ValueError(
-                    "DataFrame is empty. Please" "provide a non-empty DataFrame."
+        if df is not None:
+            if not isinstance(df, pl.DataFrame):
+                raise TypeError(
+                    f"`df` must be a `polars.DataFrame`, but got {type(df)}."
                 )
-        else:
-            if tsmode:
-                raise NotImplementedError(
-                    "Time-Series dataset analysis is not yet supported for Spark DataFrames"
-                )
-
-            if (
-                df is not None and df.rdd.isEmpty()  # type: ignore
-            ):  # df.isEmpty is only support by 3.3.0 pyspark version
+            if df.height == 0:
                 raise ValueError(
-                    "DataFrame is empty. Please" "provide a non-empty DataFrame."
+                    "DataFrame is empty. Please provide a non-empty DataFrame."
                 )
 
     @staticmethod
     def __initialize_dataframe(
-        df: Optional[Union[pd.DataFrame, sDataFrame]], report_config: Settings
-    ) -> Optional[Union[pd.DataFrame, sDataFrame]]:
+        df: Optional["pl.DataFrame"], report_config: Settings
+    ) -> Optional["pl.DataFrame"]:
 
         logger.info_def_report(
             df=df,
@@ -208,15 +187,11 @@ class ProfileReport(SerializeReport, ExpectationsReport):
 
         if (
             df is not None
-            and isinstance(df, pd.DataFrame)
+            and isinstance(df, pl.DataFrame)
             and report_config.vars.timeseries.active
+            and report_config.vars.timeseries.sortby
         ):
-            if report_config.vars.timeseries.sortby:
-                df = df.sort_values(by=report_config.vars.timeseries.sortby)
-                df = df.set_index(report_config.vars.timeseries.sortby, drop=False)
-                df.index.name = None
-            else:
-                df = df.sort_index()
+            df = df.sort(report_config.vars.timeseries.sortby)
 
         return df
 
@@ -249,7 +224,7 @@ class ProfileReport(SerializeReport, ExpectationsReport):
             self._description_set = None
 
     @property
-    def typeset(self) -> Optional[VisionsTypeset]:
+    def typeset(self) -> Optional[Any]:
         if self._typeset is None:
             self._typeset = ProfilingTypeSet(self.config, self._type_schema)
         return self._typeset
@@ -257,11 +232,7 @@ class ProfileReport(SerializeReport, ExpectationsReport):
     @property
     def summarizer(self) -> BaseSummarizer:
         if self._summarizer is None:
-            use_spark = False
-            if self._df_type is not pd.DataFrame:
-                use_spark = True
-
-            self._summarizer = ProfilingSummarizer(self.typeset, use_spark=use_spark)
+            self._summarizer = ProfilingSummarizer(self.typeset)
         return self._summarizer
 
     @property
@@ -314,7 +285,7 @@ class ProfileReport(SerializeReport, ExpectationsReport):
             self._widgets = self._render_widgets()
         return self._widgets
 
-    def get_duplicates(self) -> Optional[pd.DataFrame]:
+    def get_duplicates(self) -> Optional["pl.DataFrame"]:
         """Get duplicate rows and counts based on the configuration
 
         Returns:
@@ -461,10 +432,12 @@ class ProfileReport(SerializeReport, ExpectationsReport):
                     return [encode_it(v) for v in o]
                 elif isinstance(o, set):
                     return {encode_it(v) for v in o}
-                elif isinstance(o, pd.Series):
+                elif isinstance(o, VarSeries):
+                    return encode_it(o.to_dict())
+                elif isinstance(o, pl.Series):
                     return encode_it(o.to_list())
-                elif isinstance(o, pd.DataFrame):
-                    return encode_it(o.to_dict(orient="records"))
+                elif isinstance(o, pl.DataFrame):
+                    return encode_it(o.to_dicts())
                 elif isinstance(o, np.ndarray):
                     return encode_it(o.tolist())
                 elif isinstance(o, Sample):

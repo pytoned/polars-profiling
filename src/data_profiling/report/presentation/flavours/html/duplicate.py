@@ -1,14 +1,13 @@
-import pandas as pd
+import polars as pl
 
 from data_profiling.report.presentation.core.duplicate import Duplicate
 from data_profiling.report.presentation.flavours.html import templates
+from data_profiling.report.presentation.flavours.html.frame import frame_to_html
 
 
-def to_html(df: pd.DataFrame) -> str:
-    html = df.to_html(
-        classes="duplicate table table-striped",
-    )
-    if df.empty:
+def to_html(df: pl.DataFrame) -> str:
+    html = frame_to_html(df, classes="duplicate table table-striped")
+    if df.height == 0:
         html = html.replace(
             "<tbody>",
             f"<tbody><tr><td colspan={len(df.columns) + 1}>Dataset does not contain duplicate rows.</td></tr>",

@@ -2,21 +2,15 @@ import importlib
 import warnings
 from typing import Any, Callable, Dict, Optional, Sized
 
-import pandas as pd
-
 from data_profiling.config import Settings
 
 
 class MissingDataBackend:
-    """Helper class to select and cache the appropriate missing-data backend (Pandas or Spark)."""
+    """Helper class to select and cache the Polars missing-data backend."""
 
     def __init__(self, df: Sized):
         """Determine backend once and store it for all missing-data computations."""
-        if isinstance(df, pd.DataFrame):
-            self.backend_module = "data_profiling.model.pandas.missing_pandas"
-        else:
-            self.backend_module = "data_profiling.model.spark.missing_spark"
-
+        self.backend_module = "data_profiling.model.polars.missing_polars"
         self.module = importlib.import_module(self.backend_module)
 
     def get_method(self, method_name: str) -> Callable:
@@ -108,7 +102,7 @@ def get_missing_active(config: Settings, table_stats: dict) -> Dict[str, Any]:
 
 
 def get_missing_diagram(
-    config: Settings, df: pd.DataFrame, settings: Dict[str, Any]
+    config: Settings, df: Any, settings: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
     """Gets the rendered diagrams for missing values.
 

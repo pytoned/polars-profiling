@@ -415,7 +415,9 @@ def scatter_pairwise(
 
     color = config.html.style.primary_colors[0]
 
-    indices = (series1.notna()) & (series2.notna())
+    series1 = np.asarray(series1, dtype=float)
+    series2 = np.asarray(series2, dtype=float)
+    indices = ~(np.isnan(series1) | np.isnan(series2))
     if len(series1) > config.plot.scatter_threshold:
         cmap = sns.light_palette(color, as_cmap=True)
         plt.hexbin(series1[indices], series2[indices], gridsize=15, cmap=cmap)
@@ -439,8 +441,8 @@ def _plot_stacked_barh(
         ax: Stacked bar plot (matplotlib.axes)
         legend: Legend handler (matplotlib)
     """
-    # Use the pd.Series indices as category names
-    labels = data.index.values.astype(str)
+    # Use the value-counts indices as category names
+    labels = np.asarray(data.index).astype(str)
 
     # Plot
     _, ax = plt.subplots(figsize=(7, 2))
@@ -519,7 +521,7 @@ def _plot_pie_chart(
     if not hide_legend:
         legend = plt.legend(
             wedges,
-            data.index.values,
+            np.asarray(data.index),
             fontsize="large",
             bbox_to_anchor=(0, 0),
             loc="upper left",
@@ -990,32 +992,38 @@ def missing_bar(
     Returns:
         The plot axis.
     """
-    percentage = notnull_counts / nrows
+    counts = np.asarray(getattr(notnull_counts, "values", notnull_counts), dtype=float)
+    col_labels = list(getattr(notnull_counts, "index", range(len(counts))))
+    count_labels = [int(c) for c in counts]
+    percentage = counts / nrows if nrows else counts
+    positions = np.arange(len(counts))
 
-    if len(notnull_counts) <= 50:
-        ax0 = percentage.plot.bar(figsize=figsize, fontsize=fontsize, color=color)
+    _, ax0 = plt.subplots(figsize=figsize)
+
+    if len(counts) <= 50:
+        ax0.bar(positions, percentage, color=color)
+        ax0.set_ylim(0, 1)
+        ax0.set_xticks(positions)
         ax0.set_xticklabels(
-            ax0.get_xticklabels(),
-            ha="right",
-            fontsize=fontsize,
-            rotation=label_rotation,
+            col_labels, ha="right", fontsize=fontsize, rotation=label_rotation
         )
 
         ax1 = ax0.twiny()
-        ax1.set_xticks(ax0.get_xticks())
+        ax1.set_xticks(positions)
         ax1.set_xlim(ax0.get_xlim())
         ax1.set_xticklabels(
-            notnull_counts, ha="left", fontsize=fontsize, rotation=label_rotation
+            count_labels, ha="left", fontsize=fontsize, rotation=label_rotation
         )
     else:
-        ax0 = percentage.plot.barh(figsize=figsize, fontsize=fontsize, color=color)
-        ylabels = ax0.get_yticklabels() if labels else []
-        ax0.set_yticklabels(ylabels, fontsize=fontsize)
+        ax0.barh(positions, percentage, color=color)
+        ax0.set_xlim(0, 1)
+        ax0.set_yticks(positions)
+        ax0.set_yticklabels(col_labels if labels else [], fontsize=fontsize)
 
         ax1 = ax0.twinx()
-        ax1.set_yticks(ax0.get_yticks())
+        ax1.set_yticks(positions)
         ax1.set_ylim(ax0.get_ylim())
-        ax1.set_yticklabels(notnull_counts, fontsize=fontsize)
+        ax1.set_yticklabels(count_labels, fontsize=fontsize)
 
     for ax in [ax0, ax1]:
         ax = _set_visibility(ax)

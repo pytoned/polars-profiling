@@ -3,9 +3,6 @@
 """
 from typing import Any, Callable, Dict, List, Sequence
 
-import networkx as nx
-from visions import VisionsTypeset
-
 
 def compose(functions: Sequence[Callable]) -> Callable:
     """
@@ -33,7 +30,7 @@ class Handler:
     def __init__(
         self,
         mapping: Dict[str, List[Callable]],
-        typeset: VisionsTypeset,
+        typeset: Any,
         *args,
         **kwargs
     ):
@@ -42,12 +39,17 @@ class Handler:
         self._complete_dag()
 
     def _complete_dag(self) -> None:
-        for from_type, to_type in nx.topological_sort(
-            nx.line_graph(self.typeset.base_graph)
-        ):
-            self.mapping[str(to_type)] = (
-                self.mapping[str(from_type)] + self.mapping[str(to_type)]
-            )
+        """Prepend the base-type functions to every concrete type.
+
+        Every variable type derives from the base ``Unsupported`` type, so the
+        shared bookkeeping (counts, generic stats, supported stats) runs before
+        the type-specific description.
+        """
+        base_type = getattr(self.typeset, "base_type", "Unsupported")
+        base_funcs = self.mapping.get(base_type, [])
+        for type_name in list(self.mapping.keys()):
+            if type_name != base_type:
+                self.mapping[type_name] = base_funcs + self.mapping[type_name]
 
     def handle(self, dtype: str, *args, **kwargs) -> dict:
         """

@@ -6,30 +6,23 @@ import warnings
 from typing import Dict, List, Optional, Sized, no_type_check
 
 import numpy as np
-import pandas as pd
 
 from data_profiling.config import Settings
 
-try:
-    from pandas.core.base import DataError
-except ImportError:
-    from pandas.errors import DataError
+
+class DataError(Exception):
+    """Raised when a correlation cannot be computed for the given data."""
 
 
 class CorrelationBackend:
-    """Helper class to select and cache the appropriate correlation backend (Pandas or Spark)."""
+    """Helper class to select and cache the Polars correlation backend."""
 
     @no_type_check
     def __init__(self, df: Sized):
         """Determine backend once and store it for all correlation computations."""
-        if isinstance(df, pd.DataFrame):
-            from data_profiling.model.pandas import (
-                correlations_pandas as correlation_backend,  # type: ignore
-            )
-        else:
-            from data_profiling.model.spark import (
-                correlations_spark as correlation_backend,  # type: ignore
-            )
+        from data_profiling.model.polars import (
+            correlations_polars as correlation_backend,  # type: ignore
+        )
 
         self.backend = correlation_backend
 
@@ -132,7 +125,7 @@ def calculate_correlation(
 
 
 def perform_check_correlation(
-    correlation_matrix: pd.DataFrame, threshold: float
+    correlation_matrix, threshold: float
 ) -> Dict[str, List[str]]:
     """Check whether selected variables are highly correlated values in the correlation matrix.
 

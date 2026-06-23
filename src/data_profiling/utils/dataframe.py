@@ -6,8 +6,7 @@ import warnings
 from pathlib import Path
 from typing import Any, Optional
 
-import pandas as pd
-from pandas.core.util.hashing import hash_pandas_object
+import polars as pl
 
 
 def warn_read(extension: str) -> None:
@@ -74,110 +73,54 @@ def uncompressed_extension(file_name: Path) -> str:
     )
 
 
-def read_pandas(file_name: Path) -> pd.DataFrame:
-    """Read DataFrame based on the file extension. This function is used when the file is in a standard format.
-    Various file types are supported (.csv, .json, .jsonl, .data, .tsv, .xls, .xlsx, .xpt, .sas7bdat, .parquet)
+def read_pandas(file_name: Path) -> "pl.DataFrame":
+    """Read a Polars DataFrame based on the file extension.
+
+    Various file types are supported (.csv, .json, .jsonl, .tsv, .xls(x),
+    .parquet, .ipc/.arrow/.feather).
 
     Args:
         file_name: the file to read
 
     Returns:
-        DataFrame
+        A Polars DataFrame.
 
     Notes:
-        This function is based on pandas IO tools:
-        https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html
-        https://pandas.pydata.org/pandas-docs/stable/reference/io.html
-
-        This function is not intended to be flexible or complete. The main use case is to be able to read files without
-        user input, which is currently used in the editor integration. For more advanced use cases, the user should load
-        the DataFrame in code.
+        This function is not intended to be flexible or complete. The main use
+        case is to be able to read files without user input. For more advanced
+        use cases, the user should load the DataFrame in code.
     """
     extension = uncompressed_extension(file_name)
     if extension == ".json":
-        df = pd.read_json(str(file_name))
+        df = pl.read_json(str(file_name))
     elif extension == ".jsonl":
-        df = pd.read_json(str(file_name), lines=True)
-    elif extension == ".dta":
-        df = pd.read_stata(str(file_name))
+        df = pl.read_ndjson(str(file_name))
     elif extension == ".tsv":
-        df = pd.read_csv(str(file_name), sep="\t")
+        df = pl.read_csv(str(file_name), separator="\t")
     elif extension in [".xls", ".xlsx"]:
-        df = pd.read_excel(str(file_name))
-    elif extension in [".hdf", ".h5"]:
-        df = pd.read_hdf(str(file_name))
-    elif extension in [".sas7bdat", ".xpt"]:
-        df = pd.read_sas(str(file_name))
+        df = pl.read_excel(str(file_name))
     elif extension == ".parquet":
-        df = pd.read_parquet(str(file_name))
-    elif extension in [".pkl", ".pickle"]:
-        df = pd.read_pickle(str(file_name))
-    elif extension == ".tar":
-        raise ValueError(
-            "tar compression is not supported directly by pandas, please use the 'tarfile' module"
-        )
+        df = pl.read_parquet(str(file_name))
+    elif extension in [".ipc", ".arrow", ".feather"]:
+        df = pl.read_ipc(str(file_name))
     else:
         if extension != ".csv":
             warn_read(extension)
-
-        df = pd.read_csv(str(file_name))
+        df = pl.read_csv(str(file_name))
     return df
 
 
-def rename_index(df: pd.DataFrame) -> pd.DataFrame:
-    """If the DataFrame contains a column or index named `index`, this will produce errors. We rename the {index,column}
-    to be `df_index`.
+def rename_index(df: "pl.DataFrame") -> "pl.DataFrame":
+    """Rename a reserved ``index`` column to ``df_index``.
 
     Args:
         df: DataFrame to process.
 
     Returns:
-        The DataFrame with {index,column} `index` replaced by `df_index`, unchanged if the DataFrame does not contain such a string.
+        The DataFrame with the ``index`` column renamed to ``df_index`` (if any).
     """
-    df.rename(columns={"index": "df_index"}, inplace=True)
-
-    if "index" in df.index.names:
-        df.index.names = [x if x != "index" else "df_index" for x in df.index.names]
-    return df
-
-
-def expand_mixed(df: pd.DataFrame, types: Any = None) -> pd.DataFrame:
-    """Expand non-nested lists, dicts and tuples in a DataFrame into columns with a prefix.
-
-    Args:
-        types: list of types to expand (Default: list, dict, tuple)
-        df: DataFrame
-
-    Returns:
-        DataFrame with the dict values as series, identifier by the combination of the series and dict keys.
-
-    Notes:
-        TODO: allow for list expansion by duplicating rows.
-        TODO: allow for expansion of nested data structures.
-    """
-    if types is None:
-        types = [list, dict, tuple]
-
-    for column_name in df.columns:
-        # All
-        non_nested_enumeration = (
-            df[column_name]
-            .dropna()
-            .map(lambda x: type(x) in types and not any(type(y) in types for y in x))
-        )
-
-        if non_nested_enumeration.all():
-            # Expand and prefix
-            expanded = pd.DataFrame(df[column_name].dropna().tolist())
-            expanded = expanded.add_prefix(column_name + "_")
-
-            # Add recursion
-            expanded = expand_mixed(expanded)
-
-            # Drop the expanded
-            df.drop(columns=[column_name], inplace=True)
-
-            df = pd.concat([df, expanded], axis=1)
+    if "index" in df.columns:
+        df = df.rename({"index": "df_index"})
     return df
 
 
@@ -185,8 +128,8 @@ def expand_mixed(df: pd.DataFrame, types: Any = None) -> pd.DataFrame:
 HASH_PREFIX = "2@"
 
 
-def hash_dataframe(df: pd.DataFrame) -> str:
-    """Hash a DataFrame (implementation might change in the future)
+def hash_dataframe(df: "pl.DataFrame") -> str:
+    """Hash a Polars DataFrame (implementation might change in the future).
 
     Args:
         df: the DataFrame
@@ -194,11 +137,7 @@ def hash_dataframe(df: pd.DataFrame) -> str:
     Returns:
         The DataFrame's hash
     """
-    # hash_pandas_object returns a series of uint64s. Using their
-    # binary representation would be more efficient, but it's not
-    # necessarily portable across architectures. Using the human-readable
-    # string values should be good enough.
-    hash_values = "\n".join(hash_pandas_object(df).values.astype(str))
+    hash_values = "\n".join(str(v) for v in df.hash_rows().to_list())
     digest = hashlib.sha256(hash_values.encode("utf-8")).hexdigest()
     return f"{HASH_PREFIX}{digest}"
 

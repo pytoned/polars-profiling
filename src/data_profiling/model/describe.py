@@ -1,10 +1,9 @@
 """Organize the calculation of statistics for each series in this DataFrame."""
 from datetime import datetime
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
-import pandas as pd
+import polars as pl
 from tqdm.auto import tqdm
-from visions import VisionsTypeset
 
 from data_profiling.config import Settings
 from data_profiling.model import BaseAnalysis, BaseDescription
@@ -29,18 +28,18 @@ from data_profiling.version import __version__
 
 def describe(
     config: Settings,
-    df: Union[pd.DataFrame, "pyspark.sql.DataFrame"],  # type: ignore[name-defined] # noqa: F821
+    df: "pl.DataFrame",
     summarizer: BaseSummarizer,
-    typeset: VisionsTypeset,
+    typeset: Any,
     sample: Optional[dict] = None,
 ) -> BaseDescription:  # noqa: TC301
     """Calculate the statistics for each series in this DataFrame.
 
     Args:
         config: report Settings object
-        df: DataFrame.
+        df: Polars DataFrame.
         summarizer: summarizer object
-        typeset: visions typeset
+        typeset: profiling typeset
         sample: optional, dict with custom sample
 
     Returns:
@@ -57,20 +56,10 @@ def describe(
         raise TypeError(f"`config` must be of type `Settings`, got {type(config)}")
 
     # Validate df input type
-
-    if not isinstance(df, pd.DataFrame):
-        try:
-            from pyspark.sql import DataFrame as SparkDataFrame  # type: ignore
-
-            if not isinstance(df, SparkDataFrame):  # noqa: TC301
-                raise TypeError(  # noqa: TC301
-                    f"`df` must be either a `pandas.DataFrame` or a `pyspark.sql.DataFrame`, but got {type(df)}."
-                )
-        except ImportError as ex:
-            raise TypeError(
-                f"`df must be either a `pandas.DataFrame` or a `pyspark.sql.DataFrame`, but got {type(df)}."
-                f"If using Spark, make sure PySpark is installed."
-            ) from ex
+    if not isinstance(df, pl.DataFrame):
+        raise TypeError(
+            f"`df` must be a `polars.DataFrame`, but got {type(df)}."
+        )
 
     df = preprocess(config, df)
 

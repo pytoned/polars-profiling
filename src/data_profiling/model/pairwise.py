@@ -1,6 +1,6 @@
 from typing import Any, List, Tuple
 
-import pandas as pd
+import polars as pl
 
 from data_profiling.config import Settings
 from data_profiling.visualisation.plot import scatter_pairwise
@@ -21,13 +21,16 @@ def get_scatter_tasks(
 
 
 def get_scatter_plot(
-    config: Settings, df: pd.DataFrame, x: Any, y: Any, continuous_variables: list
+    config: Settings, df: pl.DataFrame, x: Any, y: Any, continuous_variables: list
 ) -> str:
     if x in continuous_variables:
         if y == x:
-            df_temp = df[[x]].dropna()
+            df_temp = df.select([pl.col(x)]).drop_nulls()
+            xs = ys = df_temp.get_column(x).to_numpy()
         else:
-            df_temp = df[[x, y]].dropna()
-        return scatter_pairwise(config, df_temp[x], df_temp[y], x, y)
+            df_temp = df.select([pl.col(x), pl.col(y)]).drop_nulls()
+            xs = df_temp.get_column(x).to_numpy()
+            ys = df_temp.get_column(y).to_numpy()
+        return scatter_pairwise(config, xs, ys, x, y)
     else:
         return ""
