@@ -17,10 +17,10 @@ def warn_read(extension: str) -> None:
     """
     warnings.warn(
         f"""There was an attempt to read a file with extension {extension}, we assume it to be in CSV format.
-To prevent this warning from showing up, please rename the file to any of the extensions supported by pandas
-(docs: https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html)
+To prevent this warning from showing up, please rename the file to one of the extensions supported by Polars
+(docs: https://docs.pola.rs/api/python/stable/reference/io.html)
 If you think this extension should be supported, please report this as an issue:
-https://github.com/Data-Centric-AI-Community/data-profiling/issues"""
+https://github.com/pytoned/polars-profiling/issues"""
     )
 
 

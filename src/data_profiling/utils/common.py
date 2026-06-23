@@ -73,36 +73,8 @@ def convert_timestamp_to_datetime(timestamp: int) -> datetime:
 def analytics_features(
     dataframe: str, datatype: str, report_type: str, ncols: int, nrows: int, dbx: str
 ) -> None:
-    endpoint = "https://packages.ydata.ai/data-profiling?"
-    package_version = __version__
-
-    if (
-        bool(os.getenv("YDATA_PROFILING_NO_ANALYTICS")) is not True
-        and package_version != "0.0.dev0"
-    ):
-        try:
-            subprocess.check_output("nvidia-smi")
-            gpu_present = True
-        except Exception:
-            gpu_present = False
-
-        python_version = ".".join(platform.python_version().split(".")[:2])
-
-        with contextlib.suppress(Exception):
-            request_message = (
-                f"{endpoint}version={package_version}"
-                f"&python_version={python_version}"
-                f"&report_type={report_type}"
-                f"&dataframe={dataframe}"
-                f"&ncols={ncols}"
-                f"&nrows={nrows}"
-                f"&datatype={datatype}"
-                f"&os={platform.system()}"
-                f"&gpu={str(gpu_present)}"
-                f"&dbx={dbx}"
-            )
-
-            requests.get(request_message)
+    """No-op. polars-profiling does not collect or send any telemetry."""
+    return None
 
 
 def is_running_in_databricks():

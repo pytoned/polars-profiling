@@ -2,8 +2,7 @@
 
 These operate on the (small) value-counts container produced by the Polars
 backend and return :class:`VarSeries` objects, so no pandas is involved.
-The Unicode category/script/block logic mirrors the original
-ydata-profiling implementation but is re-plumbed off plain Python data
+The Unicode category/script/block logic is implemented off plain Python data
 structures.
 """
 import string

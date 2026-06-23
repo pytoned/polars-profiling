@@ -14,8 +14,7 @@ def column_imbalance_score(
     """Bounded (0..1) class-imbalance score based on entropy.
 
     A perfectly uniform distribution returns 0; a perfectly imbalanced one
-    returns 1. See the original ydata-profiling implementation for the
-    derivation.
+    returns 1.
     """
     if n_classes > 1:
         counts = np.asarray(value_counts, dtype=float)

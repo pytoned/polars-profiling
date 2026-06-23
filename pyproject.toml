@@ -13,7 +13,7 @@ package_name = "polars-profiling"
 name = "polars-profiling"
 requires-python = ">=3.10,<3.14"
 authors = [
-    {name = "YData Labs Inc", email = "opensource@ydata.ai"}
+    {name = "polars-profiling contributors"}
 ]
 description = "Generate a profile report for a Polars DataFrame"
 keywords = ["polars", "data-science", "data-analysis", "python", "jupyter", "ipython"]
@@ -115,8 +115,9 @@ unicode= [
 ]
 
 [project.urls]
-Homepage = "https://ydata.ai"
-Repository = "https://github.com/Data-Centric-AI-Community/fg-data-profiling"
+Homepage = "https://pytoned.github.io/polars-profiling/"
+Repository = "https://github.com/pytoned/polars-profiling"
+Issues = "https://github.com/pytoned/polars-profiling/issues"
 
 [project.scripts]
 data_profiling = "data_profiling.controller.console:main"

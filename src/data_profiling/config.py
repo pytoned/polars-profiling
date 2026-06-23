@@ -296,7 +296,7 @@ class Settings(BaseSettings):
         env_prefix = "profile_"
 
     # Title of the document
-    title: str = "YData Profiling Report"
+    title: str = "Polars Profiling Report"
 
     dataset: Dataset = Dataset()
     variables: Variables = Variables()
