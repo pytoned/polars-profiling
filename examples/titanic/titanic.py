@@ -1,4 +1,4 @@
-import pandas as pd
+import polars as pl
 
 from data_profiling import ProfileReport
 from data_profiling.utils.cache import cache_file
@@ -9,7 +9,7 @@ if __name__ == "__main__":
         "https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv",
     )
 
-    df = pd.read_csv(file_name)
+    df = pl.read_csv(file_name)
 
     profile = ProfileReport(df, title="Titanic Dataset", explorative=True)
     profile.to_file("titanic_report.html")
