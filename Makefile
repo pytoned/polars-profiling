@@ -5,18 +5,10 @@ docs:
 
 test:
 	pytest tests/unit/
-	pytest tests/issues/
-	pytest --nbval tests/notebooks/
-	data_profiling -h
-
-test_spark:
-	pytest tests/backends/spark_backend/
 	data_profiling -h
 
 test_cov:
 	pytest --cov=. tests/unit/
-	pytest --cov=. --cov-append tests/issues/
-	pytest --cov=. --cov-append --nbval tests/notebooks/
 	data_profiling -h
 
 examples:
@@ -33,13 +25,6 @@ install:
 
 install-docs: install ### Installs regular and docs dependencies
 	pip install -e ".[docs]"
-
-install-spark-ci:
-	sudo apt-get update
-	sudo apt-get -y install openjdk-11-jdk
-	curl https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz \
-	--output ${SPARK_DIRECTORY}/spark.tgz
-	cd ${SPARK_DIRECTORY} && tar -xvzf spark.tgz && mv spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} spark
 
 publish-docs: examples ### Publishes the documentation
 	mkdir docs/examples
