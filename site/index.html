@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>polars-profiling — Exploratory data analysis for Polars</title>
+  <meta name="description" content="Generate a rich, interactive HTML profiling report from a Polars DataFrame in one line. Pandas-free, Spark-free, telemetry-free." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --bg:#0b0d12; --bg2:#11141c; --card:#161a24; --line:#232838;
+      --text:#e8ebf2; --muted:#9aa3b8; --accent:#f59e0b; --accent2:#3b82f6;
+      --grad:linear-gradient(120deg,#f59e0b 0%,#fb7185 50%,#3b82f6 100%);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,rgba(59,130,246,.18),transparent),radial-gradient(1000px 500px at 10% 0%,rgba(245,158,11,.14),transparent),var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+    /* nav */
+    nav{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.02em;font-size:18px}
+    .brand .dot{width:14px;height:14px;border-radius:4px;background:var(--grad)}
+    .nav-links{display:flex;gap:26px;align-items:center;color:var(--muted);font-weight:500;font-size:15px}
+    .nav-links a:hover{color:var(--text)}
+    .btn{display:inline-block;padding:11px 20px;border-radius:10px;font-weight:600;font-size:15px;border:1px solid var(--line);transition:.15s}
+    .btn:hover{border-color:#3a4560}
+    .btn-primary{background:var(--grad);color:#0b0d12;border:none}
+    .btn-primary:hover{filter:brightness(1.08);transform:translateY(-1px)}
+    /* hero */
+    .hero{padding:80px 0 56px;text-align:center}
+    .pill{display:inline-block;padding:6px 14px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:13px;font-weight:500;margin-bottom:26px;background:var(--bg2)}
+    .pill b{color:var(--accent)}
+    h1{font-size:clamp(38px,6vw,68px);line-height:1.04;letter-spacing:-.03em;margin:0 0 20px;font-weight:800}
+    h1 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .sub{font-size:clamp(17px,2.4vw,21px);color:var(--muted);max-width:680px;margin:0 auto 34px}
+    .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+    .install{margin:34px auto 0;max-width:430px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px 18px;font-family:'JetBrains Mono',monospace;font-size:15px;color:var(--text);display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .install .pfx{color:var(--accent)}
+    .copy{cursor:pointer;color:var(--muted);font-size:12px;font-family:Inter;border:1px solid var(--line);padding:5px 10px;border-radius:7px}
+    .copy:hover{color:var(--text)}
+    /* sections */
+    section{padding:56px 0}
+    .eyebrow{color:var(--accent);font-weight:600;font-size:14px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px}
+    h2{font-size:clamp(28px,4vw,40px);letter-spacing:-.02em;margin:0 0 16px;font-weight:800}
+    .lead{color:var(--muted);max-width:640px;font-size:17px}
+    /* code + features split */
+    .grid2{display:grid;grid-template-columns:1.05fr 1fr;gap:40px;align-items:center}
+    @media(max-width:820px){.grid2{grid-template-columns:1fr}}
+    pre{background:#0e1118;border:1px solid var(--line);border-radius:14px;padding:22px;overflow:auto;font-family:'JetBrains Mono',monospace;font-size:14px;line-height:1.7;margin:0}
+    .c-kw{color:#fb7185}.c-fn{color:#60a5fa}.c-str{color:#fcd34d}.c-com{color:#5b647a}.c-var{color:#e8ebf2}
+    .features{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:34px}
+    @media(max-width:820px){.features{grid-template-columns:1fr}}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;transition:.18s}
+    .card:hover{border-color:#33405e;transform:translateY(-3px)}
+    .card .ic{width:42px;height:42px;border-radius:11px;background:rgba(245,158,11,.12);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px}
+    .card h3{margin:0 0 8px;font-size:18px;font-weight:700}
+    .card p{margin:0;color:var(--muted);font-size:15px}
+    /* comparison table */
+    table{width:100%;border-collapse:collapse;margin-top:28px;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+    th,td{padding:15px 20px;text-align:left;border-bottom:1px solid var(--line);font-size:15px}
+    th{color:var(--muted);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+    td.yes{color:#34d399;font-weight:600}td.no{color:#9aa3b8}
+    tr:last-child td{border-bottom:none}
+    .col-accent{color:var(--accent);font-weight:700}
+    /* demo banner */
+    .demo{background:linear-gradient(120deg,rgba(245,158,11,.08),rgba(59,130,246,.08));border:1px solid var(--line);border-radius:20px;padding:48px;text-align:center}
+    /* footer */
+    footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-size:14px;text-align:center;margin-top:40px}
+    footer a{color:var(--text);font-weight:500}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <div class="brand"><span class="dot"></span> polars-profiling</div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#why">Why</a>
+        <a href="./titanic_report.html">Live demo</a>
+        <a class="btn" href="https://github.com/pytoned/polars-profiling">GitHub</a>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <span class="pill"><b>Polars-only</b> · no pandas · no Spark · no telemetry</span>
+      <h1>Profile your <span class="grad">Polars</span><br/>DataFrames in one line.</h1>
+      <p class="sub">A rich, interactive exploratory-data-analysis report — statistics, distributions, correlations, missing-value diagnostics and data-quality alerts — computed natively with Polars.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="./titanic_report.html">View a live report →</a>
+        <a class="btn" href="https://github.com/pytoned/polars-profiling">Star on GitHub</a>
+      </div>
+      <div class="install">
+        <span><span class="pfx">$</span> pip install polars-profiling</span>
+        <span class="copy" onclick="navigator.clipboard.writeText('pip install polars-profiling');this.textContent='Copied!'">Copy</span>
+      </div>
+    </header>
+  </div>
+
+  <section id="quickstart">
+    <div class="wrap grid2">
+      <div>
+        <div class="eyebrow">Quickstart</div>
+        <h2>One DataFrame in, one report out.</h2>
+        <p class="lead">Point it at any Polars <code>DataFrame</code> and get a self-contained HTML report. No conversion to pandas, no extra setup.</p>
+      </div>
+      <pre><span class="c-kw">import</span> polars <span class="c-kw">as</span> pl
+<span class="c-kw">from</span> data_profiling <span class="c-kw">import</span> ProfileReport
+
+df = pl.<span class="c-fn">read_csv</span>(<span class="c-str">"titanic.csv"</span>)
+
+profile = <span class="c-fn">ProfileReport</span>(df, title=<span class="c-str">"Titanic"</span>, explorative=<span class="c-kw">True</span>)
+profile.<span class="c-fn">to_file</span>(<span class="c-str">"report.html"</span>)</pre>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="eyebrow">Everything you need</div>
+      <h2>Batteries-included EDA</h2>
+      <div class="features">
+        <div class="card"><div class="ic">📊</div><h3>Univariate stats</h3><p>Count, distinct, missing, quantiles, mean/std, skew, kurtosis, MAD, monotonicity, zeros and infinities.</p></div>
+        <div class="card"><div class="ic">🔗</div><h3>Correlations</h3><p>Auto, Pearson, Spearman, Kendall and Cramér's V — all computed natively in Polars.</p></div>
+        <div class="card"><div class="ic">🕳️</div><h3>Missing values</h3><p>Count bars, nullity matrix and a missing-correlation heatmap to spot gaps fast.</p></div>
+        <div class="card"><div class="ic">🧭</div><h3>Type inference</h3><p>Numeric, Categorical, Boolean, DateTime and Text — with content-based detection.</p></div>
+        <div class="card"><div class="ic">⚠️</div><h3>Data-quality alerts</h3><p>High cardinality, imbalance, constants, high correlation, uniqueness and more.</p></div>
+        <div class="card"><div class="ic">🆚</div><h3>Compare datasets</h3><p>Diff two reports side by side to track drift between snapshots.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="why">
+    <div class="wrap">
+      <div class="eyebrow">Why this fork</div>
+      <h2>Polars, all the way down</h2>
+      <p class="lead">A fork of ydata-profiling rebuilt so the entire data path runs on Polars. The heavy dependencies are gone — and so is the phone-home telemetry.</p>
+      <table>
+        <tr><th>&nbsp;</th><th>ydata-profiling</th><th class="col-accent">polars-profiling</th></tr>
+        <tr><td>Input</td><td class="no">pandas / Spark</td><td class="yes">Polars</td></tr>
+        <tr><td>Compute engine</td><td class="no">pandas / numpy</td><td class="yes">native Polars expressions</td></tr>
+        <tr><td>pandas dependency</td><td class="no">required</td><td class="yes">none</td></tr>
+        <tr><td>seaborn / statsmodels / visions</td><td class="no">required</td><td class="yes">removed</td></tr>
+        <tr><td>Telemetry</td><td class="no">phones home</td><td class="yes">none</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="demo">
+        <div class="eyebrow">See it in action</div>
+        <h2>A real report, generated from Polars</h2>
+        <p class="lead" style="margin:0 auto 26px">The Titanic dataset — 891 rows, 12 columns — profiled end to end.</p>
+        <a class="btn btn-primary" href="./titanic_report.html">Open the live demo report →</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      Built with ❤️ on <a href="https://pola.rs">Polars</a> ·
+      <a href="https://github.com/pytoned/polars-profiling">GitHub</a> ·
+      <a href="https://pypi.org/project/polars-profiling/">PyPI</a><br/>
+      MIT licensed. Builds on the work of ydata-profiling and pandas-profiling.
+    </div>
+  </footer>
+</body>
+</html>
