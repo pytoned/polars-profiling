@@ -1,12 +1,9 @@
 import copy
 import json
 import warnings
+from importlib.metadata import PackageNotFoundError, version as _dist_version
 from pathlib import Path
 from typing import Any, Optional, Union
-
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    import pkg_resources
 
 from dataclasses import asdict, is_dataclass
 
@@ -328,14 +325,15 @@ class ProfileReport(SerializeReport, ExpectationsReport):
             output_file: The name or the path of the file to generate including the extension (.html, .json).
             silent: if False, opens the file in the default browser or download it in a Google Colab environment
         """
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            pillow_version = pkg_resources.get_distribution("Pillow").version
-        version_tuple = tuple(map(int, pillow_version.split(".")))
-        if version_tuple < (9, 5, 0):
-            warnings.warn(
-                "Try running command: 'pip install --upgrade Pillow' to avoid ValueError"
-            )
+        try:
+            pillow_version = _dist_version("Pillow")
+            version_tuple = tuple(map(int, pillow_version.split(".")[:3]))
+            if version_tuple < (9, 5, 0):
+                warnings.warn(
+                    "Try running command: 'pip install --upgrade Pillow' to avoid ValueError"
+                )
+        except (PackageNotFoundError, ValueError):
+            pass
 
         if not isinstance(output_file, Path):
             output_file = Path(str(output_file))

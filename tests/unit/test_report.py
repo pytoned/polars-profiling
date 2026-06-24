@@ -1,10 +1,25 @@
 """Report rendering / export / options tests."""
 import json
+import subprocess
+import sys
 
 import polars as pl
 import pytest
 
 from polars_profiling import ProfileReport, compare
+
+
+def test_imports_without_setuptools():
+    """The package must import without `pkg_resources`/`setuptools` present
+    (it is not installed by default on Python 3.12+)."""
+    code = (
+        "import sys; sys.modules['pkg_resources'] = None;\n"
+        "import polars as pl\n"
+        "from polars_profiling import ProfileReport\n"
+        "ProfileReport(pl.DataFrame({'a': [1, 2, 3]}), progress_bar=False).to_html()\n"
+    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.fixture
