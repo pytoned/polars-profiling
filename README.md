@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/pytoned/polars-profiling/actions"><img alt="Build" src="https://img.shields.io/badge/build-passing-brightgreen"></a>
-  <a href="https://pypi.org/project/polars-profiling/"><img alt="PyPI" src="https://img.shields.io/pypi/v/polars-profiling.svg"></a>
+  <a href="https://github.com/pytoned/polars-profiling/actions/workflows/tests.yml"><img alt="Build" src="https://github.com/pytoned/polars-profiling/actions/workflows/tests.yml/badge.svg"></a>
+  <a href="https://pypi.org/project/polars-profiling/"><img alt="PyPI" src="https://img.shields.io/pypi/v/polars-profiling?color=blue&label=pypi"></a>
   <a href="https://github.com/pytoned/polars-profiling/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
   <img alt="Python" src="https://img.shields.io/badge/python-3.10%2B-blue.svg">
   <img alt="Polars only" src="https://img.shields.io/badge/engine-polars--only-orange.svg">
