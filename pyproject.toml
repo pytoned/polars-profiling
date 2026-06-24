@@ -42,12 +42,12 @@ classifiers = [
 dependencies = [
     # Core dataframe engine (Polars only)
     "polars>=1.0, <2",
-    "scipy>=1.8, <1.17",
-    "matplotlib>=3.5, <=3.10",
+    "scipy>=1.8",
+    "matplotlib>=3.5",
     "pydantic>=2, <3",
-    "PyYAML>=6.0.3, <6.1",
-    "jinja2>=3.1.6, <3.2",
-    "numpy>=1.22,<2.4",
+    "PyYAML>=6.0",
+    "jinja2>=3.1",
+    "numpy>=1.22",
     # Related to HTML report
     "minify-html>=0.15.0",
     "filetype>=1.0.0",
@@ -59,7 +59,7 @@ dependencies = [
     "multimethod>=1.4, <2",
     # type checking
     "typeguard>=4, <5",
-    "imagehash==4.3.2",
+    "imagehash>=4.3",
     "wordcloud>=1.9.4",
     "dacite>=1.9, <2",
 ]
