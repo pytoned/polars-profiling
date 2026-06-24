@@ -5,11 +5,11 @@ docs:
 
 test:
 	pytest tests/unit/
-	data_profiling -h
+	polars-profiling -h
 
 test_cov:
 	pytest --cov=. tests/unit/
-	data_profiling -h
+	polars-profiling -h
 
 examples:
 	find ./examples -maxdepth 2 -type f -name "*.py" -execdir python {} \;

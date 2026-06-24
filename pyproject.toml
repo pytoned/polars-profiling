@@ -120,7 +120,7 @@ Repository = "https://github.com/pytoned/polars-profiling"
 Issues = "https://github.com/pytoned/polars-profiling/issues"
 
 [project.scripts]
-data_profiling = "data_profiling.controller.console:main"
+polars-profiling = "polars_profiling.controller.console:main"
 
 # setuptools relative
 
@@ -128,7 +128,7 @@ data_profiling = "data_profiling.controller.console:main"
 include-package-data = true
 
 [tool.setuptools.package-data]
-data_profiling = ["py.typed"]
+polars_profiling = ["py.typed"]
 
 [tool.distutils.bdist_wheel]
 universal = true

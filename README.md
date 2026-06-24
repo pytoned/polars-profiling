@@ -50,7 +50,7 @@ pip install polars-profiling
 
 ```python
 import polars as pl
-from data_profiling import ProfileReport
+from polars_profiling import ProfileReport
 
 df = pl.read_csv("titanic.csv")
 
@@ -118,7 +118,7 @@ ProfileReport(
 ### Comparing two reports
 
 ```python
-from data_profiling import compare
+from polars_profiling import compare
 
 report_a = ProfileReport(df_a, title="A")
 report_b = ProfileReport(df_b, title="B")

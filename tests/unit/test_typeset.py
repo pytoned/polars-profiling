@@ -4,8 +4,8 @@ import datetime
 import polars as pl
 import pytest
 
-from data_profiling.config import Settings
-from data_profiling.model.typeset import ProfilingTypeSet
+from polars_profiling.config import Settings
+from polars_profiling.model.typeset import ProfilingTypeSet
 
 
 @pytest.fixture

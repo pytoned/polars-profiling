@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from data_profiling import ProfileReport
-from data_profiling.utils.cache import cache_zipped_file
+from polars_profiling import ProfileReport
+from polars_profiling.utils.cache import cache_zipped_file
 
 if __name__ == "__main__":
     file_name = cache_zipped_file(

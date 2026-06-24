@@ -2,7 +2,7 @@
 import polars as pl
 import pytest
 
-from data_profiling import ProfileReport
+from polars_profiling import ProfileReport
 
 
 @pytest.fixture

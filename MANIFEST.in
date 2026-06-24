@@ -7,10 +7,10 @@ include *.md
 include VERSION
 
 # Templates and static resources
-recursive-include src/data_profiling/report/presentation/flavours/html/templates *.html *.js *.css
+recursive-include src/polars_profiling/report/presentation/flavours/html/templates *.html *.js *.css
 
 # Configuration
-include src/data_profiling/*.yaml
+include src/polars_profiling/*.yaml
 
 # Exclude development, docs, testing and example code
 exclude .pre-commit-config.yaml

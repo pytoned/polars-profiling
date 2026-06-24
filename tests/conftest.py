@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from data_profiling.config import Settings
-from data_profiling.model.summarizer import ProfilingSummarizer
-from data_profiling.model.typeset import ProfilingTypeSet
-from data_profiling.utils.cache import cache_file
+from polars_profiling.config import Settings
+from polars_profiling.model.summarizer import ProfilingSummarizer
+from polars_profiling.model.typeset import ProfilingTypeSet
+from polars_profiling.utils.cache import cache_file
 
 
 def pytest_configure(config):

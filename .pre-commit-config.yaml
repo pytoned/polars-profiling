@@ -16,7 +16,7 @@ repos:
     hooks:
     - id: nbqa-black
     - id: nbqa-isort
-      args: [ --profile=black, --project=data_profiling ]
+      args: [ --profile=black, --project=polars_profiling ]
     - id: nbqa-pyupgrade
       args: [ --py36-plus ]
 -   repo: https://github.com/asottile/pyupgrade
@@ -29,12 +29,12 @@ repos:
     hooks:
       - id: isort
         files: '.*'
-        args: [ --profile=black, --project=data_profiling ]
+        args: [ --profile=black, --project=polars_profiling ]
 -   repo: https://github.com/mgedmin/check-manifest
     rev: "0.47"
     hooks:
     -   id: check-manifest
-        args: [ "--ignore=src/data_profiling/version.py" ]
+        args: [ "--ignore=src/polars_profiling/version.py" ]
         stages: [manual]
 -   repo: https://github.com/PyCQA/flake8
     rev: "4.0.1"
@@ -60,8 +60,8 @@ repos:
           (?x)(
             ^tests/|
             ^docsrc/|
-            ^src/data_profiling/utils/common.py|
-            ^src/data_profiling/utils/imghdr_patch.py
+            ^src/polars_profiling/utils/common.py|
+            ^src/polars_profiling/utils/imghdr_patch.py
           )
 -   repo: https://github.com/asottile/blacken-docs
     rev: v1.12.1

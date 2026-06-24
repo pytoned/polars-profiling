@@ -7,8 +7,8 @@ import pandas as pd
 from matplotlib import MatplotlibDeprecationWarning
 from pyspark.sql import SparkSession
 
-from data_profiling import ProfileReport
-from data_profiling.config import Settings
+from polars_profiling import ProfileReport
+from polars_profiling.config import Settings
 
 logging.basicConfig(level=logging.INFO)
 

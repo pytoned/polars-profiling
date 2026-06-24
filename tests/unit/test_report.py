@@ -4,7 +4,7 @@ import json
 import polars as pl
 import pytest
 
-from data_profiling import ProfileReport, compare
+from polars_profiling import ProfileReport, compare
 
 
 @pytest.fixture
