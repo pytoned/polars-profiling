@@ -1,7 +1,4 @@
-.PHONY: docs examples
-
-docs:
-	mkdocs build
+.PHONY: test test_cov examples package install lint clean all
 
 test:
 	pytest tests/unit/
@@ -17,29 +14,19 @@ examples:
 package:
 	rm -rf build dist
 	echo "$(version)" > VERSION
-	python setup.py sdist bdist_wheel
+	python -m build
 	twine check dist/*
 
 install:
-	pip install -e ".[notebook]"
-
-install-docs: install ### Installs regular and docs dependencies
-	pip install -e ".[docs]"
-
-publish-docs: examples ### Publishes the documentation
-	mkdir docs/examples
-	rsync -R examples/*/*.html docs
-	mike deploy --push --update-aliases $(version) latest
+	pip install -e ".[test]"
 
 lint:
 	pre-commit run --all-files
 
 clean:
-	git rm --cached `git ls-files -i --exclude-from=.gitignore`
+	rm -rf build dist *.egg-info src/*.egg-info
 
 all:
-	make lint
 	make install
-	make examples
-	make docs
+	make lint
 	make test
